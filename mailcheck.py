@@ -50,6 +50,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    fd = open("tmp1","w")
     for line in WordList(args.file):
         info = line.split()
         if len(info) < 2:
@@ -65,8 +66,10 @@ if __name__ == "__main__":
 #        print "[+] checking {0}".format(user)
         port = server.get('port',None)
 
-        if checkMail(server['server'], user, passwd, port=port):
-            print "[!] success, user is {0}, password is {1}".format(user,passwd)
+        #if checkMail(server['server'], user, passwd, port=port):
+        #    print "[!] success, user is {0}, password is {1}".format(user,passwd)
+        if server['server'] == "pop.sina.com":
+            fd.write(" ".join([user,passwd]) + "\r\n")
 
 
 
