@@ -21,15 +21,20 @@ MAILSERVERS = { '163.com':{'server':"pop3.163.com"},
                 'sootoo.com':{'server':"mail.sootoo.com"},
             }
 
+
 def checkMail(server,user,passwd,ssl=False,port=None):
     if not port:
         port = 995 if ssl else 110
 
-    pop3 = poplib.POP3_SSL(server, port) if ssl else poplib.POP3(server, port)
+    try:
+        pop3 = poplib.POP3_SSL(server, port) if ssl else poplib.POP3(server, port)
 
-    pop3.user(user)
-    auth = pop3.pass_(passwd)
-    pop3.quit()
+        pop3.user(user)
+        auth = pop3.pass_(passwd)
+        pop3.quit()
+    except Exception as error:
+        print "[!] chekcing {0} failed, reason:{1}".format(user, str(error))
+        return False
 
     if "+OK" in auth:
         return True
