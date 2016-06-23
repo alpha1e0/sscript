@@ -1,2 +1,2 @@
 # sscript
-some scripts for security 
+some scripts
