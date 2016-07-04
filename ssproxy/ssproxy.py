@@ -15,7 +15,8 @@ import argparse
 
 
 
-PAC_FILE = os.path.join("~", ".Shadowsocks", "gfwlist.js")
+#PAC_FILE = os.path.join("~", ".Shadowsocks", "gfwlist.js")
+PAC_FILE = os.path.join(sys.path[0], "pac.txt")
 
 
 class pacerror(Exception):
@@ -29,7 +30,7 @@ class pacerror(Exception):
 class PACFileParser(object):
     SSPAC_BACKUP_FILE = os.path.join(sys.path[0], ".sspacbackup")
     RULE_START = "var rules = ["
-    SPLIT_LINE = ".user-defined-entries-split.line"
+    SPLIT_LINE = "\".user-defined-entries-split.line\""
 
     def __init__(self, pacFilePath):
         self._pacFilePath = pacFilePath
@@ -37,15 +38,16 @@ class PACFileParser(object):
         if not os.path.exists(self._pacFilePath):
             raise pacerror("pac file not found at {0}".format(self._pacFilePath))
 
-        self._pacContent = self._loadPacFile()
+        self._pacContent = ""
 
+        self._loadPacFile()
         self._firstParse()
 
         self._currUserEntries = self._loadUserEntries()
 
 
     def add(self, pattern):
-        self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", pattern, ",\n"]))
+        self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", pattern, ","]))
         self.save()
 
 
@@ -55,7 +57,7 @@ class PACFileParser(object):
 
 
     def show(self):
-        print "\n".join(self.userEntries)
+        print "\n".join(self._currUserEntries)
 
 
     def restore(self):
@@ -70,9 +72,13 @@ class PACFileParser(object):
         pass
 
 
-    def save(self):
+    def _saveChanges(self):
         with open(self._pacFilePath, "w") as _file:
             _file.write(self._pacContent)
+
+
+    def save(self):
+        self._saveChanges()
 
         self._flushProxyConfig()
 
@@ -83,10 +89,10 @@ class PACFileParser(object):
 
 
     def _loadUserEntries(self):
-        startPos = self._pacContent.lfind(self.RULE_START) + len(self.RULE_START)
-        endPos = self._pacContent.lfind(self.SPLIT_LINE)
+        startPos = self._pacContent.find(self.RULE_START) + len(self.RULE_START)
+        endPos = self._pacContent.find(self.SPLIT_LINE)
 
-        userEntriesStr = self._pacContent[startPos, endPos]
+        userEntriesStr = self._pacContent[startPos:endPos]
 
         userEntries = [x.strip().strip("\"") for x in userEntriesStr.split(",")]
 
@@ -102,8 +108,8 @@ class PACFileParser(object):
     def _firstParse(self):
         if self.SPLIT_LINE not in self._pacContent:
             self._backup()
-            self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START,"\n  ",self.SPLIT_LINE,",\n"]))
-
+            self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", self.SPLIT_LINE, ","]))
+            self._saveChanges()
 
 
 
@@ -125,7 +131,8 @@ def main():
 
 
     print "============================SS pac file manage===============================\n"
-    ssm = PACFileParser()
+    ssm = PACFileParser(PAC_FILE)
+
     if args.list:
         print u"[+]: 有以下自定义HOST:"
         print ssm.show()
