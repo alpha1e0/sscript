@@ -18,33 +18,92 @@ import argparse
 PAC_FILE = os.path.join("~", ".Shadowsocks", "gfwlist.js")
 
 
-class PACFileParser(class):
-    def __init__(self, pacPath, userDefinedHOSTFilePath=None):
-        pass
+class pacerror(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return "pacerror: " + str(self.msg)
+
+
+class PACFileParser(object):
+    SSPAC_BACKUP_FILE = os.path.join(sys.path[0], ".sspacbackup")
+    RULE_START = "var rules = ["
+    SPLIT_LINE = ".user-defined-entries-split.line"
+
+    def __init__(self, pacFilePath):
+        self._pacFilePath = pacFilePath
+
+        if not os.path.exists(self._pacFilePath):
+            raise pacerror("pac file not found at {0}".format(self._pacFilePath))
+
+        self._pacContent = self._loadPacFile()
+
+        self._firstParse()
+
+        self._currUserEntries = self._loadUserEntries()
 
 
     def add(self, pattern):
-        pass
+        self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", pattern, ",\n"]))
+        self.save()
 
 
-    def rm(self, pattern):
-        pass
+    def delete(self, pattern):
+        self._pacContent = self._pacContent.replace("".join(["  \"", pattern, "\",\n"]), "")
+        self.save()
 
 
     def show(self):
-        pass
+        print "\n".join(self.userEntries)
 
 
     def restore(self):
+        with open(self.SSPAC_BACKUP_FILE) as _file:
+            rawContent = _file.read()
+
+        with open(self.pacFilePath, 'w') as _file:
+            _file.write(rawContent)
+
+
+    def _flushProxyConfig(self):
         pass
+
+
+    def save(self):
+        with open(self._pacFilePath, "w") as _file:
+            _file.write(self._pacContent)
+
+        self._flushProxyConfig()
+
+
+    def _loadPacFile(self):
+        with open(self._pacFilePath) as _file:
+            self._pacContent = _file.read()
+
+
+    def _loadUserEntries(self):
+        startPos = self._pacContent.lfind(self.RULE_START) + len(self.RULE_START)
+        endPos = self._pacContent.lfind(self.SPLIT_LINE)
+
+        userEntriesStr = self._pacContent[startPos, endPos]
+
+        userEntries = [x.strip().strip("\"") for x in userEntriesStr.split(",")]
+
+        return userEntries
 
 
     def _backup(self):
-        pass
+        if not os.path.exists(self.SSPAC_BACKUP_FILE):
+            with open(self.SSPAC_BACKUP_FILE,'w') as _file:
+                _file.write(self._pacContent)
 
 
-    def _async(self):
-        pass
+    def _firstParse(self):
+        if self.SPLIT_LINE not in self._pacContent:
+            self._backup()
+            self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START,"\n  ",self.SPLIT_LINE,",\n"]))
+
 
 
 
@@ -58,10 +117,10 @@ class hostParamParser(argparse.Action):
 
 def main():
     parser = argparse.ArgumentParser(description=u"Mail账户验证/爆破")
-    parser.add("-l", "--list", action="store_true", help=u"列举所有自定义HOST")
-    parser.add("-a", "--add", action=hostParamParser, help=u"增加自定义HOST")
-    parser.add("-d", "--delete", action=hostParamParser, help=u"删除自定义HOST")
-    parser.add("-r", "--restore", help=u"恢复原始PAC文件")
+    parser.add_argument("-l", "--list", action="store_true", help=u"列举所有自定义HOST")
+    parser.add_argument("-a", "--add", action=hostParamParser, help=u"增加自定义HOST")
+    parser.add_argument("-d", "--delete", action=hostParamParser, help=u"删除自定义HOST")
+    parser.add_argument("-r", "--restore", help=u"恢复原始PAC文件")
     args = parser.parse_args()
 
 
@@ -80,7 +139,7 @@ def main():
         return
 
     if args.delete:
-        if ssm.rm(args.add):
+        if ssm.delete(args.delete):
             print u"[+]: 删除自定义HOST {0} 成功".format(args.add)
         else:
             print u"[!]: 删除自定义HOST {0} 失败".format(args.add)
