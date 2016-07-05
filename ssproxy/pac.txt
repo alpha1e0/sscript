@@ -4,7 +4,6 @@
 var proxy = "__PROXY__";
 
 var rules = [
-  ".fuckdd.com",
   ".user-defined-entries-split.line",
   "||4tern.com",
   "|http://85.17.73.31/",

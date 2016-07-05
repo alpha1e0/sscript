@@ -15,8 +15,7 @@ import argparse
 
 
 
-#PAC_FILE = os.path.join("~", ".Shadowsocks", "gfwlist.js")
-PAC_FILE = os.path.join(sys.path[0], "pac.txt")
+PAC_FILE = "/Users/apple/.ShadowsocksX/gfwlist.js"
 
 
 class pacerror(Exception):
@@ -294,6 +293,6 @@ if __name__ == '__main__':
     try:
         main()
     except pacerror as error:
-        print str(error)
+        Output.red(str(error))
 
 
