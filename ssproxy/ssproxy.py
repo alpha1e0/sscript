@@ -4,7 +4,7 @@
 '''
 ssproxy.
 ===================================================================
-shadowsocks 客户端pac文件管理，增加/删除/查询自定义过代理HOST
+shadowsocks 客户端pac文件管理，增加/删除/查询自定义过代理
 '''
 
 
@@ -27,6 +27,116 @@ class pacerror(Exception):
         return "pacerror: " + str(self.msg)
 
 
+def isAscii(pattern):
+    if not isinstance(pattern, str):
+        return False
+    else:
+        try:
+            pattern.decode("utf-8")
+            pattern.decode("gbk")
+        except UnicodeDecodeError:
+            return False
+        else:
+            return True
+
+
+class Output(object):
+    '''
+    终端输出功能
+        该类用于输出信息到控制台和文件
+    '''
+    _RED = '\033[31m'
+    _BLUE = '\033[34m'
+    _YELLOW = '\033[33m'
+    _GREEN = '\033[32m'
+    _EOF = '\033[0m'
+
+    _WIDTH = 80
+    _CHAR = "-"
+
+    def __init__(self, title=None, tofile=None):
+        pass
+
+    @classmethod
+    def safeEncode(cls, msg, method=None):
+        '''
+        安全编码
+            如果msg中有不能编码的字节，自动处理为16进制
+        '''
+        if isinstance(msg, str):
+            return msg
+        elif isinstance(msg, unicode):
+            method = method.lower() if method else sys.stdout.encoding
+            return msg.encode(method)
+
+
+    @classmethod
+    def R(cls, msg):
+        '''
+        字符串着色为红色
+        '''
+        return cls._RED + msg + cls._EOF
+
+    @classmethod
+    def Y(cls, msg):
+        '''
+        字符串着色为橙色
+        '''
+        return cls._YELLOW + msg + cls._EOF
+
+    @classmethod
+    def B(cls, msg):
+        '''
+        字符串着色为蓝色
+        '''
+        return cls._BLUE + msg + cls._EOF
+
+    @classmethod
+    def G(cls, msg):
+        '''
+        字符串着色为绿色
+        '''
+        return cls._GREEN + msg + cls._EOF
+
+
+    @classmethod
+    def raw(cls, msg):
+        '''
+        无颜色输出
+        '''
+        print cls.safeEncode(msg)
+    
+
+    @classmethod
+    def red(cls, msg):
+        '''
+        打印红色信息
+        '''
+        cls.raw(cls.R(msg))
+
+    @classmethod
+    def yellow(cls, msg):
+        '''
+        打印橙色信息
+        '''
+        cls.raw(cls.Y(msg))
+
+    @classmethod
+    def blue(cls, msg):
+        '''
+        打印蓝色信息
+        '''
+        cls.raw(cls.B(msg))
+
+    @classmethod
+    def green(cls, msg):
+        '''
+        打印绿色信息
+        '''
+        cls.raw(cls.G(msg))
+
+
+
 class PACFileParser(object):
     SSPAC_BACKUP_FILE = os.path.join(sys.path[0], ".sspacbackup")
     RULE_START = "var rules = ["
@@ -47,25 +157,37 @@ class PACFileParser(object):
 
 
     def add(self, pattern):
-        self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", pattern, ","]))
+        if pattern in self._pacContent:
+            return False
+
+        self._pacContent = self._pacContent.replace(self.RULE_START, "".join([self.RULE_START, "\n  ", "\"", pattern, "\","]))
         self.save()
+
+        return True
 
 
     def delete(self, pattern):
+        if pattern not in self._pacContent:
+            return False
+
         self._pacContent = self._pacContent.replace("".join(["  \"", pattern, "\",\n"]), "")
         self.save()
 
+        return True
 
-    def show(self):
-        print "\n".join(self._currUserEntries)
+
+    def list(self):
+        return "\n".join(self._currUserEntries)
 
 
     def restore(self):
         with open(self.SSPAC_BACKUP_FILE) as _file:
             rawContent = _file.read()
 
-        with open(self.pacFilePath, 'w') as _file:
+        with open(self._pacFilePath, 'w') as _file:
             _file.write(rawContent)
+
+        return True
 
 
     def _flushProxyConfig(self):
@@ -118,49 +240,60 @@ class hostParamParser(argparse.Action):
     host类型参数处理器
     '''
     def __call__(self, parser, namespace, values, option_string=None):
-        pass
+        values = values.strip()
+        if not isAscii(values):
+            raise pacerror("url should be ascii")
+        if values.startswith("|") or values.startswith("@") or values.startswith("."):
+            setattr(namespace, self.dest, values)
+        else:
+            setattr(namespace, self.dest, "||"+values)
 
 
 def main():
-    parser = argparse.ArgumentParser(description=u"Mail账户验证/爆破")
-    parser.add_argument("-l", "--list", action="store_true", help=u"列举所有自定义HOST")
-    parser.add_argument("-a", "--add", action=hostParamParser, help=u"增加自定义HOST")
-    parser.add_argument("-d", "--delete", action=hostParamParser, help=u"删除自定义HOST")
-    parser.add_argument("-r", "--restore", help=u"恢复原始PAC文件")
+    parser = argparse.ArgumentParser(description=u"Shadowsocks PAC 操作")
+    parser.add_argument("-l", "--list", action="store_true", help=u"列举所有自定义项")
+    parser.add_argument("-a", "--add", action=hostParamParser, help=u"增加自定义项")
+    parser.add_argument("-d", "--delete", action=hostParamParser, help=u"删除自定义项")
+    parser.add_argument("-r", "--restore", action="store_true", help=u"恢复原始PAC文件")
     args = parser.parse_args()
 
 
-    print "============================SS pac file manage===============================\n"
+    out = Output()
+    out.yellow(u">>>>>>>>>>>>>>>  Shadowsocks PAC 操作  <<<<<<<<<<<<<<<<<<\n")
+
     ssm = PACFileParser(PAC_FILE)
 
     if args.list:
-        print u"[+]: 有以下自定义HOST:"
-        print ssm.show()
+        out.yellow(u"[+]: 有以下自定义项:\n")
+        out.raw(ssm.list())
         return
 
     if args.add:
         if ssm.add(args.add):
-            print u"[+]: 增加自定义HOST {0} 成功".format(args.add)
+            out.green("[+]: 增加 \"{0}\" 成功".format(args.add))
         else:
-            print u"[!]: 增加自定义HOST {0} 失败".format(args.add)
+            out.red(u"[!]: 增加 \"{0}\" 失败".format(args.add))
         return
 
     if args.delete:
         if ssm.delete(args.delete):
-            print u"[+]: 删除自定义HOST {0} 成功".format(args.add)
+            out.green(u"[+]: 删除 \"{0}\" 成功".format(args.delete))
         else:
-            print u"[!]: 删除自定义HOST {0} 失败".format(args.add)
+            out.red(u"[!]: 删除 \"{0}\" 失败".format(args.delete))
         return
 
     if args.restore:
         if ssm.restore():
-            print u"[+]: 恢复原始PAC文件成功"
+            out.green(u"[+]: 恢复原始PAC文件成功")
         else:
-            print u"[!]: 恢复原始PAC文件失败".format(args.add)
+            out.red(u"[!]: 恢复原始PAC文件失败".format(args.add))
         return
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except pacerror as error:
+        print str(error)
 
 
