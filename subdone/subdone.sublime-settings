@@ -1,0 +1,23 @@
+{
+    // The full path of the `pandoc` command 
+    // Sublime can not access environment variables, so you should specified it.
+    "pandoc_cmd_file": "/usr/local/bin/pandoc",
+
+    // The full path of markdown pandoc template file
+    // If null use the default template file
+    "pandoc_template_file": null,
+
+    // The full path of markdown css file
+    // If null use the default css file
+    "pandoc_css_file": null,
+
+    // pandoc --toc
+    "pandoc_toc": true,
+
+    // pandoc --toc-depth
+    "pandoc_toc_depth": 3,
+
+    // The full path for pandoc outputs
+    // Use the path of the markdown file for default
+    "pandoc_output_path": "/Users/apple/tmp/"
+}
