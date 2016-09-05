@@ -48,7 +48,6 @@ class MdToHtmlCommand(sublime_plugin.TextCommand):
             "--template", templateFileArg, "--css", cssFileArg, \
             "-s --self-contained", self._tocArg, sourceFileNameArg, \
             "--output", outputFileArg])
-        debug(cmd)
 
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
